@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Travail Pratique Final</title>
+    <style>
+        canvas {
+            background: lightpink;
+            border: 2px solid lightslategray;
+        }
+    </style>
+</head>
+<body>
+    <canvas width="945" height="540"> </canvas>
+    <script>
+        //Récupérer le canvas
+        let leCanvas = document.querySelector("canvas");
+        let ctx = leCanvas.getContext("2d");
+        
+
+        //Laura Visentin 22 décembre 2023
+
+        //DESCRIPTION DU JEU
+        //Personnage principal (un citron), qui doit récolter des gouttes d'eau pour gagner et des sucres pour obtenir un meilleur score. 
+
+
+
+        //Variables pour le positionnement des sucres
+        let xMaxSucre = leCanvas.width + 200;
+        let xMinSucre = leCanvas.width + 180;
+
+        //Déclaration des objets
+
+        //Personnage principal (citron)
+        let citron = {
+            img: new Image(),
+            urlImage: "./images/citron_jeu_125.png",
+            x: 50, //Position sur l'axe des X
+            y: 200, //Position initiale sur l'axe des Y
+            largeur: 125, //Largeur d'une vignette
+            hauteur: 125, //Hauteur d'une vignette
+            vitesseY: 6, //Vitesse du citron sur l'axe des Y
+        };
+
+        //Objets à récolter 
+
+        let sucre1 = {
+            img: new Image(),
+            urlImage: "./images/sucreHappy115.png",
+            x: Math.random() * (xMaxSucre - xMinSucre) + xMinSucre, //Position sur l'axe des X
+            y: Math.random() * (leCanvas.height-90), //Position initiale sur l'axe des Y
+            largeur: 115, //Largeur d'une vignette
+            hauteur: 95, //Hauteur d'une vignette
+            vitesseX: 5, //Vitesse du sucre sur l'axe des X
+        };
+
+        let sucre2 = {
+            img: new Image(),
+            urlImage: "./images/sucreHappy115.png",
+            x: Math.random() * (xMaxSucre - xMinSucre) + xMinSucre, //Position sur l'axe des X
+            y: Math.random() * (leCanvas.height-90), //Position initiale sur l'axe des Y
+            largeur: 115, //Largeur d'une vignette
+            hauteur: 95, //Hauteur d'une vignette
+            vitesseX: 5, //Vitesse du sucre sur l'axe des X
+        };
+
+        let goutte = {
+            img: new Image(),
+            urlImage: "./images/eau80.png",
+            x: Math.random() * (xMaxSucre - xMinSucre) + xMinSucre, //Position sur l'axe des X
+            y: Math.random() * (leCanvas.height-90), //Position initiale sur l'axe des Y
+            largeur: 80, //Largeur d'une vignette
+            hauteur: 76, //Hauteur d'une vignette
+            vitesseX: 7, //Vitesse du sucre sur l'axe des X
+        };
+        console.log(goutte.x);
+
+        //Ennemi / La scie
+        let scie = {
+            img: new Image(),
+            urlImage: "./images/scieePetit.png",
+            x:800,
+            y: Math.random() * (leCanvas.height - 126),
+            largeur: 75,
+            hauteur: 75, 
+            vitesseX: 6, 
+            vitesseY: 6,
+        };
+
+        //Scores
+        let barreEau = {
+            img: new Image(),
+            urlImage: "./images/Sprites_barreEau.png",
+            x:50,
+            y:20,
+            largeur: 200,
+            hauteur: 50, 
+            indexVignette: 0, //Première vignette
+            nbVignettes: 7, //Nombre de vignettes
+            sourceX: 0, //Coordonnée x de la vignette à afficher
+        };
+        
+        //Charger les images
+        //citron
+        citron.img.src = citron.urlImage;
+        //sucres
+        sucre1.img.src = sucre1.urlImage;
+        sucre2.img.src = sucre2.urlImage;
+        //gouttes
+        goutte.img.src = goutte.urlImage;
+        //scie
+        scie.img.src = scie.urlImage;
+        //Barre de l'eau
+        barreEau.img.src = barreEau.urlImage;
+        //Afficher l'image d'intro
+        introDuJeu();
+
+        //Sons du jeu
+
+        //Attrape une goutte
+        let sonGoutte = new Audio();
+        sonGoutte.src = "./sons/goutte.mp3";
+        //FIN
+        let sonPerd = new Audio();
+        sonPerd.src = "./sons/shing.mp3";
+
+        //Variables et images pour le score
+        let score = 0;
+
+        //Variables booléennes si les éléments sont touchés
+        let attraperGoutte;
+        let attraperSucre;
+
+         
+        //Gestionnaire d'événement pour commencer le jeu
+        document.addEventListener("keydown", commencerLeJeu);
+        console.log(sucre1.x, sucre2.x);
+        console.log(sucre1.y, sucre2.y);
+
+        //variable interval du jeu
+        let intervalJeuID;
+
+        //Variable pour la collision Scie/Citron (fin du jeu)
+        let siCollisionScie; //joueur a perdu
+        
+        //Variable fleches de type Objet pour savoir si les touches fléchées du clavier haut ou bas sont appuyées
+        let fleches = {
+            haut: false,
+            bas: false,
+        };
+
+        //Tableau pour le sucre
+        let lesCubes = [sucre1, sucre2];
+
+        //Écouteur sur le document pour détecter si des touches de clavier sont appuyées ou relâchées
+        document.addEventListener("keydown", presserFleche);
+        document.addEventListener("keyup", relacherFleche);
+        
+        //////////////////////////// LES FONCTIONS  ///////////////////////////////////////////////////////
+
+        
+        //Fonction pour actualiser l'affichage du jeu
+        function actualiserLeJeu(){
+            //Effacer le canvas
+            ctx.clearRect(0, 0, leCanvas.width, leCanvas.height);
+
+            //Déplacer et Afficher les éléments
+            deplacerCitron();
+            deplacerLeSucre();
+            deplacerLaScie();
+            deplacerUneGoutte(goutte);
+            // Dessiner la barre d'eau
+            ctx.drawImage(barreEau.img, barreEau.sourceX, 0, barreEau.largeur, barreEau.hauteur, barreEau.x, barreEau.y, barreEau.largeur, barreEau.hauteur);
+            // Détecter les collisions avec les aliments
+            
+            for (let cube1 = 0; cube1 < lesCubes.length; cube1++) {
+                //Pour le sucre
+                if (detecterCollisionsAliments(lesCubes[cube1], citron)) {
+                    gererCollisionPourAliment(lesCubes[cube1]);
+                    //On incrémente le score de 1
+                    score += 1;
+                    //Variables pour le visuel du score
+                    attraperSucre = true;
+                    attraperGoutte = false;
+                }
+                //Pour les gouttes d'eau
+                if (detecterCollisionsAliments(goutte, citron)) {
+                    gererCollisionPourAliment(goutte);
+                    //On incrémente le score de 2
+                    score += 2;
+                    //On change l'image de la barre
+                    gererImageBarreEau();
+                    //Effet sonore
+                    sonGoutte.play();
+                    //Variables pour le visuel du score
+                    attraperGoutte = true;
+                    attraperSucre = false;
+                }
+                
+            }
+            //Afficher le score
+            afficherScore();
+            
+            //Détection de la collision entre la scie et le citron
+            siCollisionScie = collisionScie(scie, citron);
+            if(siCollisionScie || barreEau.indexVignette > 7){
+                //Effet sonore
+                sonPerd.play();
+                //On affiche la fin du jeu
+                finDuJeu();
+            }
+
+
+        }
+        //Fonction pour afficher l'intro du jeu
+        function introDuJeu(){
+            //Image
+            leCanvas.style.backgroundImage = "url('./images/accueil_limonade_sansText_945.jpg')";
+            //Texte
+            ctx.font = "bold  36px Tahoma";
+            ctx.textAlign = "center";
+            ctx.fillStyle = "orange";
+            ctx.textBaseline = "middle";
+
+            //Point d'ancrage du texte
+            let x = leCanvas.width - leCanvas.width/3;
+            let y = leCanvas.height - leCanvas.height/4;
+
+            //Dessin du texte
+            ctx.fillText("Évite la lame en", x, y-citron.hauteur/2);
+            ctx.fillText("récoltant tous les ingrédients!", x, y);
+            
+        }
+
+        //Fonction pour démarrer le commencement du jeu
+        function commencerLeJeu(event){
+            console.log(event)
+
+            //Si la touche Espace est relâchée, on affiche l'arrière-plan du jeu
+            if (event.keyCode == 32) {
+
+                //On enlève d'abord ce qui est déjà dessiné dans la balise <canvas>
+                ctx.clearRect(0,0,leCanvas.width, leCanvas.height);
+                
+                //On affiche ensuite l'arrière-plan du <canvas> avec une propriété CSS
+                leCanvas.style.backgroundImage = "url('./images/cuisine2.jpg')";
+                //On enlève le gestionnaire d'événement pour ne pas perturber la suite du jeu
+                document.removeEventListener("keydown", commencerLeJeu);
+                 //Mise à jour du jeu pour le dessin des éléments du jeu
+                intervalJeuID = setInterval(actualiserLeJeu, 1000 / 60);
+                
+            }
+        }
+
+        //Function pour déplacer le citron
+        function deplacerCitron(){
+            
+            //Gestion des déplacements selon les touches
+            if (fleches.haut) {
+                citron.y -= citron.vitesseY;
+            }
+            if (fleches.bas) {
+                citron.y += citron.vitesseY;
+            }
+
+            //Détection des limites du canva
+            let yMax= leCanvas.height - citron.hauteur;
+            
+            //Limite haut
+            if (citron.y < 0) {
+                citron.y = 0;
+            }
+            
+            //Limite bas
+            if (citron.y > yMax) {
+                citron.y = yMax;
+            }
+            //Dessin du citron
+            ctx.drawImage(citron.img, citron.x, citron.y);
+
+        }
+        //Fonction qui gère le déplacement d'un sucre (les positions et sa vitesse)
+        function deplacerLeSucre(){
+            //Gestion du tableau des cubes
+            for (let cube1 = 0; cube1 < lesCubes.length; cube1++) {
+            let unSucre = lesCubes[cube1];
+
+            //Vitesse d'un sucre
+            unSucre.x -= unSucre.vitesseX;
+            
+            //Repositionner le sucre à une nouvelle position
+            if(unSucre.x < 0 - unSucre.largeur){
+                unSucre.x = Math.random() * (xMaxSucre - xMinSucre) + xMinSucre;
+                unSucre.y = Math.random() * (leCanvas.height- 90);
+            }
+            //Dessiner un sucre
+            ctx.drawImage(unSucre.img, unSucre.x, unSucre.y);
+            }
+        }
+
+        //Fonction qui gère le déplacement de la goutte (les positions et sa vitesse)
+        function deplacerUneGoutte(uneGoutte){
+            
+            //Vitesse d'une goutte
+            uneGoutte.x -= uneGoutte.vitesseX;
+            
+            //Repositionner la goutte à une nouvelle position
+            if(uneGoutte.x < 0 - uneGoutte.largeur){
+                uneGoutte.x = Math.random() * (1500 - 1200) + 1200;
+                uneGoutte.y = Math.random() * ((leCanvas.height- 90) - 90) + 90;
+            }
+            //Dessiner une goutte
+            ctx.drawImage(uneGoutte.img, uneGoutte.x, uneGoutte.y);
+        }
+            
+        //Fonction qui gère le déplacement de la scie (les limites et sa vitesse)
+        function deplacerLaScie(){
+            //vitesse de la scie
+            scie.x -= scie.vitesseX;
+            scie.y -= scie.vitesseY;
+
+            //Détecter les collisions avec les limites du canvas et inverser vitesses
+            //horizontal
+            if (scie.x < 0 || scie.x > leCanvas.width - scie.largeur) {
+                scie.vitesseX *= -1;
+            }
+
+            //vertical
+            if (scie.y < 0 || scie.y > leCanvas.height - scie.hauteur) {
+                scie.vitesseY *= -1;
+            }
+
+            //Dessiner scie
+            ctx.drawImage(scie.img, scie.x, scie.y);
+        }
+
+        //Fonctiom qui gère lorsqu'il y a une collision entre le citron et un aliment
+        function gererCollisionPourAliment(aliment){
+            if (aliment === sucre1 || aliment === sucre2) {
+            // Position sucre
+            aliment.x = Math.random() * (xMaxSucre - xMinSucre) + xMinSucre;
+            aliment.y = Math.random() * (leCanvas.height - 90);
+            } else {
+            // Position goutte
+            aliment.x = Math.random() * (1500 - 1200) + 1200;
+            aliment.y = Math.random() * (leCanvas.height - 90);
+        }
+        }
+
+        
+        //Fonction qui détecte lorsque les flèches haut et bas sont pressées
+        function presserFleche(event) {
+            //Empêcher le comportement par défaut du navigateur avec les touches fléchées
+            event.preventDefault();
+
+            //Enregistrer si une touche haut/bas est pressée
+            if (event.keyCode == 38) { //flèche haut
+                fleches.haut = true;
+            }
+
+            if (event.keyCode == 40) { //flèche bas
+                fleches.bas = true;
+            }
+        }
+
+        //Fonction pour gérer si une touche fléchée est relâchée
+        function relacherFleche(event) {
+            //Empêcher le comportement par défaut du navigateur avec les touches fléchées
+            event.preventDefault();
+
+            //Enregistrer si une touche haut/bas est relâchée
+            if (event.keyCode == 38) { //flèche haut
+                fleches.haut = false;
+            }
+
+            if (event.keyCode == 40) { //flèche bas
+                fleches.bas = false;
+            }
+        }
+
+        //Fonction pour gérer la vignette à afficher pour l'eau
+        function gererImageBarreEau() {
+            //Définir la coordonnée sourceX de la vignette à afficher
+            barreEau.sourceX = barreEau.indexVignette * barreEau.largeur;
+
+            //Incrémenter et gérer l’index de la prochaine vignette à afficher
+            barreEau.indexVignette += 1;
+
+        }
+
+        //Gestion du score
+        function afficherScore(){
+            
+            //Si c'est la goutte qui a été attrapé
+            if (attraperGoutte){
+                ctx.fillStyle = "blue";
+                ctx.font = "bold 70px Tahoma";
+                ctx.fillText(score, leCanvas.width / 2, 40);
+            }
+            //Si c'est le sucre qui a été attrapé
+            if(attraperSucre){
+                ctx.fillStyle = "white";
+                ctx.font = "bold 56px Tahoma";
+                ctx.fillText(score, leCanvas.width / 2, 30);
+            }
+            //Commun
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            
+        }
+
+        //Fonction qui gère la fin du jeu
+        function finDuJeu(){
+            //On efface ce qu'il y sur le canvas
+            ctx.clearRect(0,0,leCanvas.width, leCanvas.height);
+            //On arrête l'interval en cour
+            clearInterval(intervalJeuID);
+            //Si le joueur a perdu
+            if(siCollisionScie){
+                //Image de perdant
+                leCanvas.style.backgroundImage = 'url("./images/image_perdu_citron.jpg")';
+            }
+            else{
+                leCanvas.style.backgroundImage = 'url("./images/image_gagné_citron.jpg")';
+            }
+
+            ctx.fillStyle = "hotpink";
+            ctx.font = "bold 70px Tahoma";
+            ctx.fillText(score, 665, 440);
+            
+            //On permet de redémarrer le jeu
+            leCanvas.addEventListener("click", redemarrerJeu);   
+        }
+
+        //Fonction qui permet de recommencer le jeu
+        function redemarrerJeu(){
+            window.location.reload();
+        }
+
+        //Fonction pour détecter la collision entre 2 cercles (la scie et citron)
+        function collisionScie(cercle1, cercle2) {
+            //Calculs des rayons
+            let rayonCercle1 = cercle1.largeur / 2;
+            let rayonCercle2 = cercle2.largeur / 2;
+            //Distance entre les 2 cercles sur l'axe des X
+            let distanceX = (cercle1.x + rayonCercle1) - (cercle2.x + rayonCercle2);
+            //Distance entre les 2 cercles sur l'axe des Y
+            let distanceY = (cercle1.y + rayonCercle1) - (cercle2.y + rayonCercle2);
+            //Calcul de la distance réelle entre les deux cercles (hypoténuse...)
+            let distanceXY = Math.sqrt(distanceX * distanceX + distanceY * distanceY);
+            //Si la distance entre les 2 cercles est plus petite que la somme de leur rayon
+            //Il y a une collision
+            if (distanceXY < rayonCercle1 + rayonCercle2) {
+            return true;
+            } else {
+            return false;
+            }
+        }
+        //Fonction pour détecter la collision entre un rectangle et un cercle (citron et sucre / citron et eau)
+        function detecterCollisionsAliments(leRectangle, leCercle){
+            let rayonCercle = leCercle.largeur / 2;
+            let centreX_duCercle = leCercle.x + rayonCercle;
+            let centreY_duCercle = leCercle.y + rayonCercle;
+            //La problématique est avec les coins des images
+            //Il faut donc vérifier de quel côté du rectangle se situe le cercle?
+            //Le code va d'abord tester quel coin du rectangle est le plus proche du cercle
+            let coinX = centreX_duCercle;
+            let coinY = centreY_duCercle;'jk'
+            if (centreX_duCercle < leRectangle.x) {
+            coinX = leRectangle.x; //coin gauche
+            } else if (centreX_duCercle > leRectangle.x + leRectangle.largeur) {
+            coinX = leRectangle.x + leRectangle.largeur; // coin droit
+            }
+            if (centreY_duCercle < leRectangle.y) {
+            coinY = leRectangle.y; // coin supérieur
+            } else if (centreY_duCercle > leRectangle.y + leRectangle.hauteur) {
+            coinY = leRectangle.y + leRectangle.hauteur; // coin inférieur
+            }
+            //Maintenant que nous savons quel coin vérifier, nous utilisons
+            //le théorème de Pythagore (caucul de l'hypoténuse) pour calcuyler
+            //la distance réelle entre le centre du cercle et le coin identifié
+            let distanceX = centreX_duCercle - coinX;
+            let distanceY = centreY_duCercle - coinY;
+            let distanceXY = Math.sqrt(distanceX * distanceX + distanceY * distanceY);
+            //Il y a une détection de collision si la distanceXY est plus petite que le rayon du cercle.
+            if (distanceXY <= rayonCercle) {
+            return true;
+            } else {
+            return false;
+            }
+        }
+        
+    </script>  
+</body>
+</html>
